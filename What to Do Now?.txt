@@ -1,0 +1,26 @@
+Chagpt -> I need to make backend for a chat application
+
+I am doing it in Express
+
+Give me a proper folder strucutre
+proper DB ORMS (Object Relational Models) currently only for making user, and a profile user attached to that user
+And proper folder strucutre for views, serializers and api endpoints
+
+
+
+---------
+So now we have user, create user
+
+
+Now we wanna make login 
+
+
+Login -> Access Token
+and second Refresh Token
+
+Login -> JWT Access Token => 1day 
+
+if in request -> we have access token -> then api will give response
+else -> 401 unauthorized
+
+Refresh Token -> 1 year token, jabh access token 1day (expires) => generate_new_access_token () => it'll give us new -> access token

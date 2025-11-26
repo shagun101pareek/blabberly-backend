@@ -1,0 +1,57 @@
+
+1. Node -> ? 
+
+
+# include <math.h>
+pip install matplotlib
+import from react
+ 
+Javascript -> language
+Node -> compiler (Javascript ko compile)
+
+Express -> package for doing backend in Javascript
+
+Django -> package for backend
+Java -> Java Springboot 
+
+Raw Javascript -> api (axios) (backend-> )
+
+
+Ja
+
+Components
+Cards
+Rendering 
+Bade -> project
+
+Javascript -> messy
+
+Library -> Express -> make it easier for us to code the backend
+Next, Nest, React 
+
+react is a package of node
+
+
+MonogDB -> We have a MonogDB
+
+Database -> store
+
+Frontend -> directly database -> write
+Frontend -> data validation? Frontend -> db se connect 
+button click -> instead of api call -> store it in the db -> frontend slow?
+frontend -> input -> send -> queue -> 
+backend -> validation -> 
+
+next -> slow -> server ->
+frontend -> Rendering
+frontend -> (validation, computation, request db, retry)
+frontend -> Rendering (acha dikhe aurr fast)
+data -> api call -> backend (optimized to do validation, computation and db queries)
+serializers() -> fast
+ye checks, computation
+backend , Express -> db connection -> data store
+
+frontend
+
+sync backend -> backend process
+async backend -> bhejdi, user ko stuck nahi rakha -> frontend is working fine -> backend -> it will reflect frontedn.
