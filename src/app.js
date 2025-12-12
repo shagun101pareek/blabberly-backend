@@ -3,7 +3,7 @@ import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import authRoutes from "./routes/auth.js";
-// import friendRequestRoutes from "./routes/friendRequestRoutes.js";
+import friendRequestRoutes from "./routes/friendRequestRoutes.js";
 import friendshipRoutes from "./routes/friendshipRoutes.js";
 import cors from "cors";
 
@@ -22,7 +22,7 @@ app.use("/api/auth", authRoutes);  // login
 // Protected Routes (authentication required)
 app.use("/api/chat", chatRoutes);
 app.use("/api/profile", profileRoutes);
-// app.use("/api/friend-requests", friendRequestRoutes);
+app.use("/api/friend/requests", friendRequestRoutes);
 app.use("/api/friendships", friendshipRoutes);
 
 export default app;
