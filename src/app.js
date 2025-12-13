@@ -25,4 +25,6 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/friend/requests", friendRequestRoutes);
 app.use("/api/friendships", friendshipRoutes);
 
+app.use("/api/chatrooms", chatRoutes);
+
 export default app;
