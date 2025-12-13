@@ -1,4 +1,5 @@
 import FriendRequest from '../models/friendRequest.js';
+import { createChatRoom } from "./ChatRoomController.js";
 
 export const sendFriendRequest = async (req, res) => {
   try {
@@ -42,3 +43,29 @@ export const getPendingRequests = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+export const acceptFriendRequest = async (req, res) => {
+    console.log("ACCEPT FRIEND REQUEST API HIT");
+    try {
+      const request = await FriendRequest.findById(req.params.id);
+  
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+  
+      // Mark accepted
+      request.status = "accepted";
+      await request.save();
+  
+      // ✅ CREATE CHATROOM WHEN ACCEPTED
+      await createChatRoom(request.fromUser, request.toUser);
+  
+      return res.status(200).json({ message: "Friend request accepted" });
+    } catch (error) {
+      console.error("Error accepting friend request:", error);
+      res.status(500).json({
+        message: "Error accepting request",
+        error: error.message,
+      });
+    }
+  };
