@@ -1,5 +1,7 @@
 import User from "../models/user.js";
 import { generateToken } from "./authController.js";
+import FriendRequest from "../models/friendRequest.js";
+import Friendship from "../models/friendships.js";
 
 export const createUser = async (req, res) => {
   try {
@@ -65,3 +67,55 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ message: "Server Error", error: err.message });
   }
 };
+
+export const getDiscoverUsers = async (req, res) => {
+  try {
+    const loggedInUserId = req.user;
+
+    // 1. Find friendships
+    const friendships = await Friendship.find({
+      $or: [
+        { user1: loggedInUserId },
+        { user2: loggedInUserId }
+      ]
+    });
+
+    const friendIds = friendships.map(f =>
+      f.user1.toString() === loggedInUserId
+        ? f.user2.toString()
+        : f.user1.toString()
+    );
+
+    // 2. Find pending friend requests (sent + received)
+    const pendingRequests = await FriendRequest.find({
+      $or: [
+        { fromUser: loggedInUserId, status: "pending" },
+        { toUser: loggedInUserId, status: "pending" }
+      ]
+    });
+
+    const pendingUserIds = pendingRequests.map(r =>
+      r.fromUser.toString() === loggedInUserId
+        ? r.toUser.toString()
+        : r.fromUser.toString()
+    );
+
+    // 3. Exclude users
+    const excludedUserIds = [
+      loggedInUserId,
+      ...friendIds,
+      ...pendingUserIds
+    ];
+
+    // 4. Get discoverable users
+    const users = await User.find({
+      _id: { $nin: excludedUserIds }
+    }).select("_id username firstName lastName");
+
+    res.status(200).json(users);
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
