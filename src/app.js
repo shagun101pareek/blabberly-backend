@@ -1,26 +1,24 @@
 import express from "express";
+import cors from "cors";
+
 import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import friendRequestRoutes from "./routes/friendRequestRoutes.js";
 import friendshipRoutes from "./routes/friendshipRoutes.js";
-import cors from "cors";
+import chatroomRoutes from "./routes/chatRoutes.js";
 
 const app = express();
 
 app.use(cors());
+app.use(express.json());
 
-// Middleware
-app.use(express.json()); // parse JSON
-// app.use(cookieParser());
+// Public routes
+app.use("/api/users", userRoutes);
 
-// Public Routes (no authentication required)
-app.use("/api/users", userRoutes); // signup
-
-// Protected Routes (authentication required)
+// Protected routes
 app.use("/api/chat", chatRoutes);
 app.use("/api/friend/requests", friendRequestRoutes);
 app.use("/api/friendships", friendshipRoutes);
-
-app.use("/api/chatrooms", chatRoutes);
+app.use("/api/chatrooms", chatroomRoutes);
 
 export default app;
