@@ -9,6 +9,24 @@ const chatRoomSchema = new mongoose.Schema(
         required: true,
       },
     ],
+
+    isGroup: {
+      type: Boolean,
+      default: false,
+    },
+
+    groupName: {
+      type: String,
+    },
+
+    lastMessage: {
+      text: String,
+      sender: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      createdAt: Date,
+    },
   },
   { timestamps: true }
 );
