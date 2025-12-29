@@ -1,10 +1,19 @@
 import dotenv from "dotenv";
+import http from "http";
+import app from "./app.js";
+import { initSocket } from "./socket/socket.js";
 dotenv.config();
 
-import app from "./app.js";
 import connectDB from "./config/db.js";
 
 const PORT = process.env.PORT || 5000;
+
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(5000, () => {
+  console.log("Server running on port 5000");
+});
 
 // Connect DB
 connectDB();
