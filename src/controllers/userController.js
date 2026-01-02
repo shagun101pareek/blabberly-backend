@@ -119,3 +119,70 @@ export const getDiscoverUsers = async (req, res) => {
   }
 };
 
+  export const searchUsers = async (req, res) => {
+  try {
+    const loggedInUserId = req.user.id;
+    const searchQuery = req.query.q;
+
+    if (!searchQuery || searchQuery.trim() === "") {
+      return res.status(200).json([]);
+    }
+
+    // 1. Find friendships
+    const friendships = await Friendship.find({
+      $or: [
+        { user1: loggedInUserId },
+        { user2: loggedInUserId }
+      ]
+    });
+
+    const friendIds = friendships.map(f =>
+      f.user1.toString() === loggedInUserId
+        ? f.user2.toString()
+        : f.user1.toString()
+    );
+
+    // 2. Find pending friend requests
+    const pendingRequests = await FriendRequest.find({
+      $or: [
+        { fromUser: loggedInUserId, status: "pending" },
+        { toUser: loggedInUserId, status: "pending" }
+      ]
+    });
+
+    const pendingUserIds = pendingRequests.map(r =>
+      r.fromUser.toString() === loggedInUserId
+        ? r.toUser.toString()
+        : r.fromUser.toString()
+    );
+
+    // 3. Exclude users
+    const excludedUserIds = [
+      loggedInUserId,
+      ...friendIds,
+      ...pendingUserIds
+    ];
+
+    // 4. Search users
+    const users = await User.find({
+      _id: { $nin: excludedUserIds },
+      $or: [
+        { username: { $regex: searchQuery, $options: "i" } },
+        { firstName: { $regex: searchQuery, $options: "i" } },
+        { lastName: { $regex: searchQuery, $options: "i" } },
+        { email: { $regex: searchQuery, $options: "i" } }
+      ]
+    })
+      .select("_id username firstName lastName")
+      .limit(10);
+
+    res.status(200).json(users);
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+

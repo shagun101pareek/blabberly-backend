@@ -12,7 +12,6 @@ export const initSocket = (server) => {
   });
 
   io.on("connection", (socket) => {
-    console.log("Socket connected:", socket.id);
 
     // 1️⃣ User registers socket
     socket.on("register", (userId) => {
