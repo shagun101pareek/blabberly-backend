@@ -12,19 +12,29 @@ const messageSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    receiver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     content: {
       type: String,
       required: true,
       trim: true,
     },
-    readBy: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    status: {
+      type: String,
+      enum: ["sent", "delivered", "seen"],
+      default: "sent",
+    },
+    deliveredAt: {
+      type: Date,
+    },
+    seenAt: {
+      type: Date,
+    },
   },
-  { timestamps: true }
+  { timestamps: true } // createdAt = sentAt
 );
 
 export default mongoose.model("Message", messageSchema);
