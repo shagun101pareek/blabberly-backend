@@ -8,7 +8,7 @@ import { createChatRoom } from "./ChatRoomController.js";
 export const sendFriendRequest = async (req, res) => {
   try {
     const { toUserId } = req.body;
-    const fromUserId = req.user; // set by auth middleware
+    const fromUserId = req.user.id; // set by auth middleware
 
     // prevent duplicate pending requests
     const existingRequest = await FriendRequest.findOne({
@@ -47,7 +47,7 @@ export const sendFriendRequest = async (req, res) => {
  */
 export const getPendingRequests = async (req, res) => {
   try {
-    const userId = req.user;
+    const userId = req.user.id;
 
     const requests = await FriendRequest.find({
       toUser: userId,

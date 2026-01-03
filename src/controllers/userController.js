@@ -70,7 +70,7 @@ export const loginUser = async (req, res) => {
 
 export const getDiscoverUsers = async (req, res) => {
   try {
-    const loggedInUserId = req.user;
+    const loggedInUserId = req.user.id;
 
     // 1. Find friendships
     const friendships = await Friendship.find({

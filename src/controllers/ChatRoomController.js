@@ -28,7 +28,7 @@ export const createChatRoom = async (participants, options = {}) => {
 // Optional - get all chatrooms of a user
 export const getUserChatRooms = async (req, res) => {
   try {
-    const userId = req.user; // set by auth middleware
+    const userId = req.user.id; // set by auth middleware
 
     const rooms = await ChatRoom.find({
       participants: userId,
