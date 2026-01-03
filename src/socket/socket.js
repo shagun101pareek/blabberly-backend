@@ -19,12 +19,23 @@ export const initSocket = (server) => {
     });
 
     // 2️⃣ Send message
-    socket.on("sendMessage", async ({ chatroomId, senderId, content }) => {
+    socket.on("sendMessage", async ({ chatroomId, senderId, receiverId, content }) => {
       try {
+        // If receiverId not provided, find it from chatroom participants
+        let finalReceiverId = receiverId;
+        if (!finalReceiverId) {
+          const chatroom = await Chatroom.findById(chatroomId);
+          finalReceiverId = chatroom.participants.find(
+            (id) => id.toString() !== senderId
+          )?.toString();
+        }
+
         const message = await Message.create({
           chatroom: chatroomId,
           sender: senderId,
+          receiver: finalReceiverId,
           content,
+          status: "sent",
         });
 
         await Chatroom.findByIdAndUpdate(chatroomId, {
@@ -32,12 +43,7 @@ export const initSocket = (server) => {
           updatedAt: new Date(),
         });
 
-        const chatroom = await Chatroom.findById(chatroomId);
-        const receiverId = chatroom.participants.find(
-          (id) => id.toString() !== senderId
-        );
-
-        const receiverSocketId = userSocketMap.get(receiverId?.toString());
+        const receiverSocketId = userSocketMap.get(finalReceiverId);
 
         // Send to receiver
         if (receiverSocketId) {
@@ -47,6 +53,7 @@ export const initSocket = (server) => {
         // Ack sender
         socket.emit("messageSent", message);
       } catch (err) {
+        console.error("Error sending message via WebSocket:", err);
         socket.emit("messageError", "Message failed");
       }
     });
