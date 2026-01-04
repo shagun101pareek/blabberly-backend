@@ -186,3 +186,27 @@ export const getDiscoverUsers = async (req, res) => {
   }
 };
 
+export const updateProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No image uploaded" });
+    }
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.profileImage = `/uploads/profile-pics/${req.file.filename}`;
+    await user.save();
+
+    res.status(200).json({
+      message: "Profile picture updated successfully",
+      profileImage: user.profileImage,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

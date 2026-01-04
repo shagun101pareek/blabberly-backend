@@ -28,11 +28,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       lowercase: true
+    },
+    profileImage: {
+      type: String,
+      default: ""
     }
   },
   { timestamps: true }
 );
-
 
 // To hash password before saving
 userSchema.pre("save", async function() {
@@ -47,9 +50,3 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 export default mongoose.model("User", userSchema);
-
-// username -> must, unique
-// email -> must, unique
-// password -> must
-// firsntName -> must
-// LastName -> must
