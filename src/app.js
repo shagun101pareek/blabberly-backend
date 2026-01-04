@@ -9,6 +9,9 @@ import chatroomRoutes from "./routes/chatRoutes.js";
 
 import messageRoutes from "./routes/messageRoutes.js";
 
+import path from "path";
+import profileRoutes from "./routes/profileRoutes.js";
+
 
 const app = express();
 
@@ -25,5 +28,11 @@ app.use("/api/friendships", friendshipRoutes);
 app.use("/api/chatrooms", chatroomRoutes);
 
 app.use("/api/messages", messageRoutes);
+
+// Static folder for images
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
+// Routes
+app.use("/api/users", profileRoutes);
 
 export default app;
