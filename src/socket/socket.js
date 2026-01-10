@@ -6,17 +6,15 @@ import { markOnline, markOffline } from "../controllers/userStatusController.js"
 
 /**
  * Track:
- * - how many sockets a user has (multi-tab support)
- * - which socket belongs to which user (direct delivery)
+ * - online socket count per user (multi-tab support)
+ * - socketId per user (direct delivery)
  */
-const onlineUsers = new Map();      // userId -> socketCount
-const userSocketMap = new Map();    // userId -> socketId
+const onlineUsers = new Map();   // userId -> socketCount
+const userSocketMap = new Map(); // userId -> socketId
 
 export const initSocket = (server) => {
   const io = new Server(server, {
-    cors: {
-      origin: "*",
-    },
+    cors: { origin: "*" },
   });
 
   io.on("connection", async (socket) => {
@@ -52,9 +50,46 @@ export const initSocket = (server) => {
 
     /* =========================
        REGISTER USER SOCKET
-       (CRITICAL FOR DIRECT EMIT)
     ========================== */
     userSocketMap.set(userId, socket.id);
+
+    /* =========================
+       MESSAGE DELIVERED
+       (Receiver → Server)
+    ========================== */
+    socket.on("messageDelivered", async ({ messageId }) => {
+      try {
+        if (!messageId) return;
+
+        const message = await Message.findById(messageId);
+        if (!message) return;
+
+        // 🔥 SECURITY CHECK
+        if (message.receiver.toString() !== socket.userId) return;
+
+        if (message.status !== "sent") return;
+
+        message.status = "delivered";
+        message.deliveredAt = new Date();
+        await message.save();
+
+        const senderSocketId = userSocketMap.get(
+          message.sender.toString()
+        );
+
+        if (senderSocketId) {
+          io.to(senderSocketId).emit("messageStatusUpdated", {
+            messageId,
+            status: "delivered",
+            deliveredAt: message.deliveredAt,
+          });
+        }
+
+        console.log(`✔✔ Message delivered: ${messageId}`);
+      } catch (err) {
+        console.error("❌ messageDelivered error:", err.message);
+      }
+    });
 
     /* =========================
        JOIN CHAT ROOM
@@ -73,8 +108,78 @@ export const initSocket = (server) => {
     });
 
     /* =========================
+       MESSAGE SEEN
+       (Receiver → Server)
+    ========================== */
+    socket.on("messageSeen", async ({ chatroomId }) => {
+      try {
+        if (!chatroomId) return;
+
+        const unseenMessages = await Message.find({
+          chatroom: chatroomId,
+          receiver: socket.userId,
+          status: "delivered",
+          seenAt: null,
+        });
+
+        if (unseenMessages.length === 0) return;
+
+        const seenAt = new Date();
+        const messageIds = unseenMessages.map((m) => m._id);
+
+        await Message.updateMany(
+          { _id: { $in: messageIds } },
+          {
+            $set: {
+              status: "seen",
+              seenAt,
+            },
+          }
+        );
+
+        unseenMessages.forEach((msg) => {
+          const senderSocketId = userSocketMap.get(
+            msg.sender.toString()
+          );
+
+          if (senderSocketId) {
+            io.to(senderSocketId).emit("messageStatusUpdated", {
+              messageId: msg._id,
+              status: "seen",
+              seenAt,
+            });
+          }
+        });
+
+        console.log(`👁️ Messages seen in chat ${chatroomId}`);
+      } catch (err) {
+        console.error("❌ messageSeen error:", err.message);
+      }
+    });
+
+    /* =========================
+       TYPING INDICATOR
+    ========================== */
+    socket.on("typing", ({ chatroomId }) => {
+      if (!chatroomId) return;
+
+      socket.to(String(chatroomId)).emit("typing", {
+        userId: socket.userId,
+        chatroomId,
+      });
+    });
+
+    socket.on("stopTyping", ({ chatroomId }) => {
+      if (!chatroomId) return;
+
+      socket.to(String(chatroomId)).emit("stopTyping", {
+        userId: socket.userId,
+        chatroomId,
+      });
+    });
+
+    /* =========================
        SEND MESSAGE
-       (ROOM + DIRECT DELIVERY)
     ========================== */
     socket.on("sendMessage", async ({ chatroomId, content }) => {
       try {
@@ -83,19 +188,14 @@ export const initSocket = (server) => {
         }
 
         const chatroom = await Chatroom.findById(chatroomId);
-        if (!chatroom) {
-          throw new Error("Chatroom not found");
-        }
+        if (!chatroom) throw new Error("Chatroom not found");
 
         const receiverId = chatroom.participants.find(
           (id) => id.toString() !== userId
         )?.toString();
 
-        if (!receiverId) {
-          throw new Error("Receiver not found");
-        }
+        if (!receiverId) throw new Error("Receiver not found");
 
-        // Save message
         const message = await Message.create({
           chatroom: chatroomId,
           sender: userId,
@@ -104,7 +204,6 @@ export const initSocket = (server) => {
           status: "sent",
         });
 
-        // Update chatroom metadata
         await Chatroom.findByIdAndUpdate(chatroomId, {
           lastMessage: {
             text: content,
@@ -120,23 +219,16 @@ export const initSocket = (server) => {
 
         const roomId = String(chatroomId);
 
-        /* =========================
-           1️⃣ EMIT TO CHAT ROOM
-        ========================== */
+        // Emit to users in chat
         io.to(roomId).emit("receiveMessage", populatedMessage);
 
-        /* =========================
-           2️⃣ DIRECT EMIT TO RECEIVER
-           (GUARANTEED DELIVERY)
-        ========================== */
+        // Direct emit to receiver
         const receiverSocketId = userSocketMap.get(receiverId);
         if (receiverSocketId) {
           io.to(receiverSocketId).emit("receiveMessage", populatedMessage);
         }
 
-        console.log(
-          `📨 Message sent from ${userId} → ${receiverId} (room + direct)`
-        );
+        console.log(`📨 Message sent ${userId} → ${receiverId}`);
       } catch (err) {
         console.error("❌ Message send failed:", err.message);
         socket.emit("messageError", "Message failed");
@@ -147,9 +239,8 @@ export const initSocket = (server) => {
        DISCONNECT
     ========================== */
     socket.on("disconnect", async () => {
-      console.log(`🔴 SOCKET DISCONNECTED: user=${userId}, socket=${socket.id}`);
+      console.log(`🔴 SOCKET DISCONNECTED: user=${userId}`);
 
-      // Cleanup socket mapping
       userSocketMap.delete(userId);
 
       const currentCount = (onlineUsers.get(userId) || 1) - 1;
