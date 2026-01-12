@@ -11,11 +11,13 @@ import { markOnline, markOffline } from "../controllers/userStatusController.js"
  */
 const onlineUsers = new Map();   // userId -> socketCount
 const userSocketMap = new Map(); // userId -> socketId
+let ioInstance = null;
 
 export const initSocket = (server) => {
   const io = new Server(server, {
     cors: { origin: "*" },
   });
+  ioInstance = io;
 
   io.on("connection", async (socket) => {
     /* =========================
@@ -52,6 +54,9 @@ export const initSocket = (server) => {
        REGISTER USER SOCKET
     ========================== */
     userSocketMap.set(userId, socket.id);
+    
+    // Join user-specific room for multi-tab support
+    socket.join(`user:${userId}`);
 
     /* =========================
        MESSAGE DELIVERED
@@ -179,6 +184,38 @@ export const initSocket = (server) => {
     });
 
     /* =========================
+       MARK CHAT AS READ
+    ========================== */
+    socket.on("markChatAsRead", async ({ chatroomId }) => {
+      try {
+        if (!chatroomId) return;
+
+        const chatroom = await Chatroom.findById(chatroomId);
+        if (!chatroom) return;
+
+        if (!chatroom.participants.some((p) => p.toString() === userId)) {
+          return;
+        }
+
+        const unreadCounts = chatroom.unreadCounts || new Map();
+        unreadCounts.set(userId, 0);
+        chatroom.unreadCounts = unreadCounts;
+        await chatroom.save();
+
+        io.to(`user:${userId}`).emit("chatListUpdated", {
+          chatroomId: chatroomId.toString(),
+          lastMessage: chatroom.lastMessage,
+          lastMessageAt: chatroom.lastMessageAt,
+          unreadCount: 0,
+        });
+
+        console.log(`✅ Chat marked as read: ${userId} in ${chatroomId}`);
+      } catch (err) {
+        console.error("❌ markChatAsRead error:", err.message);
+      }
+    });
+
+    /* =========================
        SEND MESSAGE
     ========================== */
     socket.on("sendMessage", async ({ chatroomId, content }) => {
@@ -204,14 +241,24 @@ export const initSocket = (server) => {
           status: "sent",
         });
 
-        await Chatroom.findByIdAndUpdate(chatroomId, {
-          lastMessage: {
-            text: content,
-            sender: userId,
-            createdAt: message.createdAt,
-          },
-          updatedAt: new Date(),
+        const now = new Date();
+        chatroom.lastMessage = {
+          text: content,
+          sender: userId,
+          createdAt: now,
+        };
+        chatroom.lastMessageAt = now;
+
+        const unreadCounts = chatroom.unreadCounts || new Map();
+        chatroom.participants.forEach((participantId) => {
+          const participantIdStr = participantId.toString();
+          if (participantIdStr !== userId) {
+            const currentCount = unreadCounts.get(participantIdStr) || 0;
+            unreadCounts.set(participantIdStr, currentCount + 1);
+          }
         });
+        chatroom.unreadCounts = unreadCounts;
+        await chatroom.save();
 
         const populatedMessage = await Message.findById(message._id)
           .populate("sender", "username")
@@ -227,6 +274,17 @@ export const initSocket = (server) => {
         if (receiverSocketId) {
           io.to(receiverSocketId).emit("receiveMessage", populatedMessage);
         }
+
+        // Emit chatListUpdated to all participants
+        chatroom.participants.forEach((participantId) => {
+          const participantIdStr = participantId.toString();
+          io.to(`user:${participantIdStr}`).emit("chatListUpdated", {
+            chatroomId: chatroomId.toString(),
+            lastMessage: chatroom.lastMessage,
+            lastMessageAt: chatroom.lastMessageAt,
+            unreadCount: unreadCounts.get(participantIdStr) || 0,
+          });
+        });
 
         console.log(`📨 Message sent ${userId} → ${receiverId}`);
       } catch (err) {
@@ -254,3 +312,5 @@ export const initSocket = (server) => {
     });
   });
 };
+
+export const getIO = () => ioInstance;

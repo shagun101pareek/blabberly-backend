@@ -27,6 +27,14 @@ const chatRoomSchema = new mongoose.Schema(
       },
       createdAt: Date,
     },
+    lastMessageAt: {
+      type: Date,
+    },
+    unreadCounts: {
+      type: Map,
+      of: Number,
+      default: new Map(),
+    },
   },
   { timestamps: true }
 );
