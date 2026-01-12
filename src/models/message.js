@@ -17,10 +17,24 @@ const messageSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    type: {
+      type: String,
+      enum: ["text", "image", "pdf"],
+      default: "text",
+    },
     content: {
       type: String,
       required: true,
       trim: true,
+    },
+    fileName: {
+      type: String,
+    },
+    fileSize: {
+      type: Number,
+    },
+    mimeType: {
+      type: String,
     },
     status: {
       type: String,

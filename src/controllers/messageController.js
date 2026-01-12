@@ -1,6 +1,7 @@
 import Message from "../models/message.js";
 import ChatRoom from "../models/chatRoom.js";
 import { getIO } from "../socket/socket.js";
+import path from "path";
 
 /**
  * SEND MESSAGE
@@ -157,5 +158,103 @@ export const markMessagesSeen = async (req, res) => {
     res.status(200).json({ message: "Messages marked as seen" });
   } catch (error) {
     res.status(500).json({ message: "Failed to mark messages as seen" });
+  }
+};
+
+/**
+ * UPLOAD FILE MESSAGE (IMAGE OR PDF)
+ */
+export const uploadFileMessage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file provided" });
+    }
+
+    const { chatroomId, receiverId } = req.body;
+    const senderId = req.user.id;
+
+    if (!chatroomId || !receiverId) {
+      return res.status(400).json({ message: "chatroomId and receiverId are required" });
+    }
+
+    const file = req.file;
+    const extName = path.extname(file.originalname).toLowerCase();
+    const imageTypes = [".jpeg", ".jpg", ".png", ".gif", ".webp"];
+    const isImage = imageTypes.includes(extName);
+    const isPdf = extName === ".pdf";
+
+    if (!isImage && !isPdf) {
+      return res.status(400).json({ message: "Only images and PDFs are allowed" });
+    }
+
+    const messageType = isImage ? "image" : "pdf";
+    const fileUrl = `/uploads/messages/${file.filename}`;
+
+    const message = await Message.create({
+      chatroom: chatroomId,
+      sender: senderId,
+      receiver: receiverId,
+      type: messageType,
+      content: fileUrl,
+      fileName: file.originalname,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+      status: "sent",
+    });
+
+    const chatroom = await ChatRoom.findById(chatroomId);
+    if (!chatroom) {
+      return res.status(404).json({ message: "Chatroom not found" });
+    }
+
+    const now = new Date();
+    const lastMessageText = isImage ? "📷 Photo" : "📄 Document";
+    
+    chatroom.lastMessage = {
+      text: lastMessageText,
+      sender: senderId,
+      createdAt: now,
+    };
+    chatroom.lastMessageAt = now;
+
+    const unreadCounts = chatroom.unreadCounts || new Map();
+    chatroom.participants.forEach((participantId) => {
+      const participantIdStr = participantId.toString();
+      if (participantIdStr !== senderId) {
+        const currentCount = unreadCounts.get(participantIdStr) || 0;
+        unreadCounts.set(participantIdStr, currentCount + 1);
+      }
+    });
+    chatroom.unreadCounts = unreadCounts;
+
+    await chatroom.save();
+
+    const populatedMessage = await Message.findById(message._id)
+      .populate("sender", "username")
+      .populate("receiver", "username");
+
+    const io = getIO();
+    if (io) {
+      const roomId = String(chatroomId);
+      
+      io.to(roomId).emit("receiveMessage", populatedMessage);
+      
+      io.to(`user:${receiverId}`).emit("receiveMessage", populatedMessage);
+
+      chatroom.participants.forEach((participantId) => {
+        const participantIdStr = participantId.toString();
+        io.to(`user:${participantIdStr}`).emit("chatListUpdated", {
+          chatroomId: chatroomId.toString(),
+          lastMessage: chatroom.lastMessage,
+          lastMessageAt: chatroom.lastMessageAt,
+          unreadCount: unreadCounts.get(participantIdStr) || 0,
+        });
+      });
+    }
+
+    res.status(201).json(populatedMessage);
+  } catch (error) {
+    console.error("Upload file message error:", error);
+    res.status(500).json({ message: "Failed to upload file message" });
   }
 };
