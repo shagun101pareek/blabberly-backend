@@ -1,5 +1,6 @@
 import Message from "../models/message.js";
 import ChatRoom from "../models/chatRoom.js";
+import { createChatRoom } from "./ChatRoomController.js";
 import { getIO } from "../socket/socket.js";
 import path from "path";
 
@@ -188,14 +189,20 @@ export const uploadFileMessage = async (req, res) => {
     }
 
     const messageType = isImage ? "image" : "pdf";
-    const fileUrl = `/uploads/messages/${file.filename}`;
+    
+    // Store full URL for images, relative path for PDFs
+    const PORT = process.env.PORT || 5000;
+    const fileUrl = isImage 
+      ? `http://localhost:${PORT}/uploads/messages/${file.filename}`
+      : `/uploads/messages/${file.filename}`;
 
+    // Save ONLY ONE message with correct type and full URL
     const message = await Message.create({
       chatroom: chatroomId,
       sender: senderId,
       receiver: receiverId,
       type: messageType,
-      content: fileUrl,
+      content: fileUrl, // Full URL for images, relative path for PDFs
       fileName: file.originalname,
       fileSize: file.size,
       mimeType: file.mimetype,
@@ -208,7 +215,8 @@ export const uploadFileMessage = async (req, res) => {
     }
 
     const now = new Date();
-    const lastMessageText = isImage ? "📷 Photo" : "📄 Document";
+    // Use image URL for images, simple text for PDFs
+    const lastMessageText = isImage ? fileUrl : "📄 Document";
     
     chatroom.lastMessage = {
       text: lastMessageText,
@@ -256,5 +264,92 @@ export const uploadFileMessage = async (req, res) => {
   } catch (error) {
     console.error("Upload file message error:", error);
     res.status(500).json({ message: "Failed to upload file message" });
+  }
+};
+
+/**
+ * UPLOAD IMAGE MESSAGE
+ * WhatsApp-style image messaging endpoint
+ * Saves ONLY ONE message with type: "image" and full URL
+ */
+export const uploadImageMessage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+
+    const { receiverId } = req.body;
+    const senderId = req.user.id;
+
+    if (!receiverId) {
+      return res.status(400).json({ message: "receiverId is required" });
+    }
+
+    // Find or create chatroom for sender and receiver
+    const chatroom = await createChatRoom([senderId, receiverId]);
+
+    const file = req.file;
+    const PORT = process.env.PORT || 5000;
+    const imageUrl = `http://localhost:${PORT}/uploads/messages/${file.filename}`;
+
+    // Save ONLY ONE message with type: "image" and full URL
+    const message = await Message.create({
+      chatroom: chatroom._id,
+      sender: senderId,
+      receiver: receiverId,
+      type: "image",
+      content: imageUrl, // Full public URL
+      fileName: file.originalname,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+      status: "sent",
+    });
+
+    // Update chatroom lastMessage
+    const now = new Date();
+    chatroom.lastMessage = {
+      text: imageUrl, // Use image URL instead of "📷 Photo"
+      sender: senderId,
+      createdAt: now,
+    };
+    chatroom.lastMessageAt = now;
+
+    const unreadCounts = chatroom.unreadCounts || new Map();
+    chatroom.participants.forEach((participantId) => {
+      const participantIdStr = participantId.toString();
+      if (participantIdStr !== senderId) {
+        const currentCount = unreadCounts.get(participantIdStr) || 0;
+        unreadCounts.set(participantIdStr, currentCount + 1);
+      }
+    });
+    chatroom.unreadCounts = unreadCounts;
+    await chatroom.save();
+
+    const populatedMessage = await Message.findById(message._id)
+      .populate("sender", "username")
+      .populate("receiver", "username");
+
+    const io = getIO();
+    if (io) {
+      const roomId = String(chatroom._id);
+      
+      io.to(roomId).emit("receiveMessage", populatedMessage);
+      io.to(`user:${receiverId}`).emit("receiveMessage", populatedMessage);
+
+      chatroom.participants.forEach((participantId) => {
+        const participantIdStr = participantId.toString();
+        io.to(`user:${participantIdStr}`).emit("chatListUpdated", {
+          chatroomId: chatroom._id.toString(),
+          lastMessage: chatroom.lastMessage,
+          lastMessageAt: chatroom.lastMessageAt,
+          unreadCount: unreadCounts.get(participantIdStr) || 0,
+        });
+      });
+    }
+
+    res.status(201).json(populatedMessage);
+  } catch (error) {
+    console.error("Upload image message error:", error);
+    res.status(500).json({ message: "Failed to upload image message" });
   }
 };
