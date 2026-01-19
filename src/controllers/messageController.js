@@ -1,12 +1,8 @@
 import Message from "../models/message.js";
-<<<<<<< Updated upstream
 import ChatRoom from "../models/chatRoom.js";
 import { createChatRoom } from "./ChatRoomController.js";
 import { getIO } from "../socket/socket.js";
 import path from "path";
-=======
-import Chat from "../models/chatRoom.js";
->>>>>>> Stashed changes
 
 /**
  * SEND MESSAGE
@@ -27,7 +23,6 @@ export const sendMessage = async (req, res) => {
       status: "sent",
     });
 
-<<<<<<< Updated upstream
     const chatroom = await ChatRoom.findById(chatroomId);
     if (!chatroom) {
       return res.status(404).json({ message: "Chatroom not found" });
@@ -69,30 +64,6 @@ export const sendMessage = async (req, res) => {
     res.status(201).json(message);
   } catch (error) {
     console.error("Send message error:", error);
-=======
-    // 2️⃣ Update chat summary
-    const chat = await Chat.findById(chatroomId);
-    if (!chat) {
-      return res.status(404).json({ message: "Chat not found" });
-    }
-
-    chat.lastMessage = content;
-    chat.lastMessageAt = new Date();
-
-    // 3️⃣ Increment unread counts
-    chat.participants.forEach((userId) => {
-      if (userId.toString() !== senderId.toString()) {
-        const prev = chat.unreadCounts.get(userId.toString()) || 0;
-        chat.unreadCounts.set(userId.toString(), prev + 1);
-      }
-    });
-
-    await chat.save();
-
-    res.status(201).json(message);
-  } catch (error) {
-    console.error("❌ sendMessage error:", error.message);
->>>>>>> Stashed changes
     res.status(500).json({ message: "Failed to send message" });
   }
 };

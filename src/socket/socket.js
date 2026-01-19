@@ -218,7 +218,6 @@ export const initSocket = (server) => {
           status: "sent",
         });
 
-<<<<<<< Updated upstream
         const now = new Date();
         chatroom.lastMessage = {
           text: content,
@@ -233,24 +232,9 @@ export const initSocket = (server) => {
           if (participantIdStr !== userId) {
             const currentCount = unreadCounts.get(participantIdStr) || 0;
             unreadCounts.set(participantIdStr, currentCount + 1);
-=======
-        /* 🔥 UPDATE CHAT SUMMARY */
-        chatroom.lastMessage = {
-          text: content,
-          sender: userId,
-          createdAt: message.createdAt,
-        };
-
-        chatroom.participants.forEach(id => {
-          if (id.toString() !== userId) {
-            const prev = chatroom.unreadCounts?.[id] || 0;
-            chatroom.unreadCounts.set(id.toString(), prev + 1);
->>>>>>> Stashed changes
           }
         });
         chatroom.unreadCounts = unreadCounts;
-        await chatroom.save();
-
         await chatroom.save();
 
         const populatedMessage = await Message.findById(message._id)
@@ -267,32 +251,12 @@ export const initSocket = (server) => {
               chatroomId,
               lastMessage: chatroom.lastMessage,
               updatedAt: chatroom.updatedAt,
-              unreadCount: chatroom.unreadCounts.get(id.toString()) || 0,
+              unreadCount: unreadCounts.get(id.toString()) || 0,
             });
           }
         });
 
-<<<<<<< Updated upstream
-        // Direct emit to receiver
-        const receiverSocketId = userSocketMap.get(receiverId);
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit("receiveMessage", populatedMessage);
-        }
-
-        // Emit chatListUpdated to all participants
-        chatroom.participants.forEach((participantId) => {
-          const participantIdStr = participantId.toString();
-          io.to(`user:${participantIdStr}`).emit("chatListUpdated", {
-            chatroomId: chatroomId.toString(),
-            lastMessage: chatroom.lastMessage,
-            lastMessageAt: chatroom.lastMessageAt,
-            unreadCount: unreadCounts.get(participantIdStr) || 0,
-          });
-        });
-
         console.log(`📨 Message sent ${userId} → ${receiverId}`);
-=======
->>>>>>> Stashed changes
       } catch (err) {
         console.error("❌ Message send failed:", err.message);
       }
@@ -316,10 +280,7 @@ export const initSocket = (server) => {
       console.log(`🔴 SOCKET DISCONNECTED: user=${userId}`);
     });
   });
-<<<<<<< Updated upstream
 };
 
 export const getIO = () => ioInstance;
-=======
-};
->>>>>>> Stashed changes
+
