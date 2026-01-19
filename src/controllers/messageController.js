@@ -1,17 +1,24 @@
 import Message from "../models/message.js";
+<<<<<<< Updated upstream
 import ChatRoom from "../models/chatRoom.js";
 import { createChatRoom } from "./ChatRoomController.js";
 import { getIO } from "../socket/socket.js";
 import path from "path";
+=======
+import Chat from "../models/chatRoom.js";
+>>>>>>> Stashed changes
 
 /**
  * SEND MESSAGE
+ * + updates chat lastMessage
+ * + increments unread counts
  */
 export const sendMessage = async (req, res) => {
   try {
     const { chatroomId, receiverId, content } = req.body;
     const senderId = req.user.id;
 
+    // 1️⃣ Create message
     const message = await Message.create({
       chatroom: chatroomId,
       sender: senderId,
@@ -20,6 +27,7 @@ export const sendMessage = async (req, res) => {
       status: "sent",
     });
 
+<<<<<<< Updated upstream
     const chatroom = await ChatRoom.findById(chatroomId);
     if (!chatroom) {
       return res.status(404).json({ message: "Chatroom not found" });
@@ -61,13 +69,37 @@ export const sendMessage = async (req, res) => {
     res.status(201).json(message);
   } catch (error) {
     console.error("Send message error:", error);
+=======
+    // 2️⃣ Update chat summary
+    const chat = await Chat.findById(chatroomId);
+    if (!chat) {
+      return res.status(404).json({ message: "Chat not found" });
+    }
+
+    chat.lastMessage = content;
+    chat.lastMessageAt = new Date();
+
+    // 3️⃣ Increment unread counts
+    chat.participants.forEach((userId) => {
+      if (userId.toString() !== senderId.toString()) {
+        const prev = chat.unreadCounts.get(userId.toString()) || 0;
+        chat.unreadCounts.set(userId.toString(), prev + 1);
+      }
+    });
+
+    await chat.save();
+
+    res.status(201).json(message);
+  } catch (error) {
+    console.error("❌ sendMessage error:", error.message);
+>>>>>>> Stashed changes
     res.status(500).json({ message: "Failed to send message" });
   }
 };
 
 /**
  * GET MESSAGES BY CHATROOM
- * Also marks messages as DELIVERED
+ * Also marks SENT → DELIVERED
  */
 export const getMessagesByChatroom = async (req, res) => {
   try {
@@ -77,7 +109,6 @@ export const getMessagesByChatroom = async (req, res) => {
     const messages = await Message.find({ chatroom: chatroomId })
       .sort({ createdAt: 1 });
 
-    // Mark SENT → DELIVERED
     await Message.updateMany(
       {
         chatroom: chatroomId,
@@ -92,6 +123,7 @@ export const getMessagesByChatroom = async (req, res) => {
 
     res.status(200).json(messages);
   } catch (error) {
+    console.error("❌ getMessagesByChatroom error:", error.message);
     res.status(500).json({ message: "Failed to fetch messages" });
   }
 };
@@ -158,6 +190,7 @@ export const markMessagesSeen = async (req, res) => {
 
     res.status(200).json({ message: "Messages marked as seen" });
   } catch (error) {
+    console.error("❌ markMessagesSeen error:", error.message);
     res.status(500).json({ message: "Failed to mark messages as seen" });
   }
 };

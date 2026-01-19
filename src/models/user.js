@@ -40,7 +40,21 @@ const userSchema = new mongoose.Schema(
     lastSeen: {
       type: Date,
       default: null
-    }
+    },
+    lastMessage: {
+    type: String,
+    default: ""
+  },
+
+  lastMessageAt: {
+    type: Date
+  },
+
+  unreadCounts: {
+    type: Map,
+    of: Number,
+    default: {}
+  }
   },
   { timestamps: true }
 );

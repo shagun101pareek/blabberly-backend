@@ -33,3 +33,23 @@ export const getMessages = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch messages" });
   }
 };
+
+export const markChatAsRead = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user._id;
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({ message: "Chat not found" });
+    }
+
+    chat.unreadCounts.set(userId.toString(), 0);
+    await chat.save();
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("❌ markChatAsRead error:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
