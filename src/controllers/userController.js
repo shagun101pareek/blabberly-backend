@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import User from "../models/user.js";
 import { generateToken } from "./authController.js";
 import FriendRequest from "../models/friendRequest.js";
@@ -183,6 +184,56 @@ export const getDiscoverUsers = async (req, res) => {
       message: "Server error",
       error: error.message
     });
+  }
+};
+
+export const getUserProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const loggedInUserId = req.user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+  return res.status(400).json({ message: "Invalid user id" });
+}
+
+    const user = await User.findById(userId).select(
+      "name username bio profilePicture followers createdAt"
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const followers = Array.isArray(user.followers)
+      ? user.followers
+      : user.followers
+        ? [user.followers]
+        : [];
+
+    const isFollowing = followers.some(
+      (id) => id.toString() === loggedInUserId.toString()
+    );
+
+    const profileResponse = {
+      _id: user._id,
+      name: user.name,
+      username: user.username,
+      bio: user.bio,
+      profilePicture: user.profilePicture,
+      onlineStatus: "online",
+      stats: {
+        connections: followers.length,
+        mutuals: 0,
+        projects: 0
+      },
+      isFollowing,
+      joinedAt: user.createdAt
+    };
+
+    res.status(200).json(profileResponse);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
