@@ -29,9 +29,24 @@ const userSchema = new mongoose.Schema(
       required: true,
       lowercase: true
     },
+    bio: {
+      type: String,
+      required: true,
+      lowercase: false
+    },
     profileImage: {
       type: String,
       default: ""
+    },
+    followers: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: []
+    },
+    following: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: []
     },
     isOnline: {
       type: Boolean,

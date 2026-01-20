@@ -21,8 +21,8 @@ const authMiddleware = (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Attach user ID to request object
-    req.user = { id: decoded.id }; // user ID from the token
+    // Attach normalized user object to request
+    req.user = { _id: decoded.id, id: decoded.id }; // ensure _id is always available
     req.userId = decoded.id; // alternative access pattern
 
     // Continue to next middleware/route handler
@@ -57,7 +57,7 @@ export const protect = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = { id: decoded.id };
+    req.user = { _id: decoded.id, id: decoded.id }; // ensure _id is always available
     next();
   } catch (err) {
     return res.status(401).json({ message: "Invalid token" });
