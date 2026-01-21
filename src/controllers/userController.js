@@ -193,8 +193,8 @@ export const getUserProfile = async (req, res) => {
     const loggedInUserId = req.user._id;
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-  return res.status(400).json({ message: "Invalid user id" });
-}
+      return res.status(400).json({ message: "Invalid user id" });
+    }
 
     const user = await User.findById(userId).select(
       "name username bio profilePicture followers createdAt"
@@ -209,6 +209,45 @@ export const getUserProfile = async (req, res) => {
       : user.followers
         ? [user.followers]
         : [];
+
+    let relationship = {
+      status: "none",
+      direction: null
+    };
+
+    if (loggedInUserId.toString() !== userId.toString()) {
+      const friendship = await Friendship.findOne({
+        $or: [
+          { user1: loggedInUserId, user2: userId },
+          { user1: userId, user2: loggedInUserId }
+        ]
+      });
+
+      if (friendship) {
+        relationship = {
+          status: "connected",
+          direction: null
+        };
+      } else {
+        const pendingRequest = await FriendRequest.findOne({
+          status: "pending",
+          $or: [
+            { fromUser: loggedInUserId, toUser: userId },
+            { fromUser: userId, toUser: loggedInUserId }
+          ]
+        });
+
+        if (pendingRequest) {
+          relationship = {
+            status: "pending",
+            direction:
+              pendingRequest.fromUser.toString() === loggedInUserId.toString()
+                ? "sent"
+                : "received"
+          };
+        }
+      }
+    }
 
     const isFollowing = followers.some(
       (id) => id.toString() === loggedInUserId.toString()
@@ -227,6 +266,7 @@ export const getUserProfile = async (req, res) => {
         projects: 0
       },
       isFollowing,
+      relationship,
       joinedAt: user.createdAt
     };
 
