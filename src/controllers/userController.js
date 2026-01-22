@@ -277,6 +277,27 @@ export const getUserProfile = async (req, res) => {
   }
 };
 
+export const getUserConnectionsCount = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const connectionsCount = await Friendship.countDocuments({
+      $or: [{ user1: userId }, { user2: userId }]
+    });
+
+    res.status(200).json({
+      count: connectionsCount
+    });
+  } catch (error) {
+    console.error("Get Connections Count Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const updateProfilePicture = async (req, res) => {
   try {
     if (!req.file) {
