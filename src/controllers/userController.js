@@ -197,7 +197,7 @@ export const getUserProfile = async (req, res) => {
     }
 
     const user = await User.findById(userId).select(
-      "name username bio profilePicture followers createdAt"
+      "name username firstName lastName bio tagline profilePicture followers createdAt"
     );
 
     if (!user) {
@@ -257,7 +257,10 @@ export const getUserProfile = async (req, res) => {
       _id: user._id,
       name: user.name,
       username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
       bio: user.bio,
+      tagline: user.tagline,
       profilePicture: user.profilePicture,
       onlineStatus: "online",
       stats: {
@@ -298,14 +301,87 @@ export const getUserConnectionsCount = async (req, res) => {
   }
 };
 
+export const getMyConnections = async (req, res) => {
+  try {
+    const loggedInUserId = req.user._id;
+
+    const friendships = await Friendship.find({
+      $or: [
+        { user1: loggedInUserId },
+        { user2: loggedInUserId }
+      ]
+    });
+
+    const connectionUserIds = friendships.map(friendship =>
+      friendship.user1.toString() === loggedInUserId.toString()
+        ? friendship.user2
+        : friendship.user1
+    );
+
+    const users = await User.find({
+      _id: { $in: connectionUserIds }
+    }).select("username profilePicture");
+
+    res.status(200).json({ users });
+  } catch (error) {
+    console.error("Get My Connections Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateMyProfile = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const { username, bio, tagline, profileImage } = req.body;
+
+    const updates = {};
+
+    if (username !== undefined) updates.username = username.trim();
+    if (bio !== undefined) updates.bio = bio.trim();
+    if (tagline !== undefined) updates.tagline = tagline.trim();
+    if (profileImage !== undefined) updates.profileImage = profileImage;
+
+    if (updates.username) {
+      if (updates.username.length < 3) {
+        return res.status(400).json({ message: "Username too short" });
+      }
+
+      const existingUser = await User.findOne({
+        username: updates.username,
+        _id: { $ne: userId }
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select("username bio tagline profileImage");
+
+    res.status(200).json({
+      success: true,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Update Profile Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const updateProfilePicture = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No image uploaded" });
     }
 
-    const user = await User.findById(req.user.id);
+    const userId = req.user._id;
 
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -314,11 +390,12 @@ export const updateProfilePicture = async (req, res) => {
     await user.save();
 
     res.status(200).json({
-      message: "Profile picture updated successfully",
-      profileImage: user.profileImage,
+      success: true,
+      user: {
+        profileImage: user.profileImage
+      }
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
