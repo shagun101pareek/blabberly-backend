@@ -4,6 +4,8 @@ import { createUser, loginUser, getDiscoverUsers, searchUsers } from "../control
 import authMiddleware from "../middleware/authMiddleware.js";
 import { getUserProfile } from "../controllers/userController.js";
 import { getUserConnectionsCount } from "../controllers/userController.js";
+import { getMyConnections } from "../controllers/userController.js";
+import { updateMyProfile } from "../controllers/userController.js";
 
 const router = express.Router();
 
@@ -13,8 +15,12 @@ router.get("/discover", authMiddleware, getDiscoverUsers);
 
 router.get("/search", authMiddleware, searchUsers);
 
+router.get("/me/connections", authMiddleware, getMyConnections);
+
 router.get("/:userId", authMiddleware, getUserProfile);
 
 router.get("/:userId/connections", authMiddleware, getUserConnectionsCount);
+
+router.put("/me/profile", authMiddleware, updateMyProfile);
 
 export default router;

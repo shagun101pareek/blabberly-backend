@@ -34,6 +34,12 @@ const userSchema = new mongoose.Schema(
       required: true,
       lowercase: false
     },
+
+     tagline: {
+    type: String,
+    maxLength: 200,
+    default: ""
+   },
     profileImage: {
       type: String,
       default: ""
