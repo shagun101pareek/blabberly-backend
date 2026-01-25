@@ -20,6 +20,9 @@ import mutualFriendsRoutes from "./routes/mutualFriendsRoutes.js";
 
 const app = express();
 
+// Disable ETag to prevent 304 Not Modified responses
+app.set('etag', false);
+
 app.use(cors());
 app.use(express.json());
 

@@ -196,8 +196,15 @@ export const getUserProfile = async (req, res) => {
       return res.status(400).json({ message: "Invalid user id" });
     }
 
+    // Set cache-control headers to prevent caching
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
     const user = await User.findById(userId).select(
-      "name username firstName lastName bio tagline profilePicture followers createdAt"
+      "name username firstName lastName bio tagline profilePicture profileImage followers createdAt updatedAt"
     );
 
     if (!user) {
@@ -262,6 +269,7 @@ export const getUserProfile = async (req, res) => {
       bio: user.bio,
       tagline: user.tagline,
       profilePicture: user.profilePicture,
+      profileImage: user.profileImage,
       onlineStatus: "online",
       stats: {
         connections: followers.length,
@@ -270,7 +278,8 @@ export const getUserProfile = async (req, res) => {
       },
       isFollowing,
       relationship,
-      joinedAt: user.createdAt
+      joinedAt: user.createdAt,
+      updatedAt: user.updatedAt
     };
 
     res.status(200).json(profileResponse);
