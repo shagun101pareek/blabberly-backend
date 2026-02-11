@@ -358,7 +358,8 @@ export const updateProfilePicture = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    user.profileImage = `/uploads/profile-pics/${req.file.filename}`;
+    // Use the R2 URL that was set by the upload middleware
+    user.profileImage = req.file.path;
     await user.save();
 
     res.status(200).json({
