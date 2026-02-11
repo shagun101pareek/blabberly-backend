@@ -194,11 +194,8 @@ export const uploadFileMessage = async (req, res) => {
 
     const messageType = isImage ? "image" : "pdf";
     
-    // Store full URL for images, relative path for PDFs
-    const PORT = process.env.PORT || 5000;
-    const fileUrl = isImage 
-      ? `http://localhost:${PORT}/uploads/messages/${file.filename}`
-      : `/uploads/messages/${file.filename}`;
+    // Use the R2 URL that was set by the middleware
+    const fileUrl = req.file.path; // Already contains the R2 public URL
 
     // Save ONLY ONE message with correct type and full URL
     const message = await Message.create({
@@ -206,7 +203,7 @@ export const uploadFileMessage = async (req, res) => {
       sender: senderId,
       receiver: receiverId,
       type: messageType,
-      content: fileUrl, // Full URL for images, relative path for PDFs
+      content: fileUrl, // R2 URL for both images and PDFs
       fileName: file.originalname,
       fileSize: file.size,
       mimeType: file.mimetype,
@@ -293,8 +290,8 @@ export const uploadImageMessage = async (req, res) => {
     const chatroom = await createChatRoom([senderId, receiverId]);
 
     const file = req.file;
-    const PORT = process.env.PORT || 5000;
-    const imageUrl = `http://localhost:${PORT}/uploads/messages/${file.filename}`;
+    // Use the R2 URL that was set by the middleware
+    const imageUrl = req.file.path; // Already contains the R2 public URL
 
     // Save ONLY ONE message with type: "image" and full URL
     const message = await Message.create({
@@ -302,7 +299,7 @@ export const uploadImageMessage = async (req, res) => {
       sender: senderId,
       receiver: receiverId,
       type: "image",
-      content: imageUrl, // Full public URL
+      content: imageUrl, // R2 public URL
       fileName: file.originalname,
       fileSize: file.size,
       mimeType: file.mimetype,
